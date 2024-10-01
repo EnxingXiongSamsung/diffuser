@@ -123,6 +123,30 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
 
+        layers_to_replace = []
+        
+        # First, collect the layers that need to be replaced
+        for name, module in self.named_modules():
+            if isinstance(module, nn.Conv2d) and module.padding == (1, 1):
+                layers_to_replace.append((name, module))
+
+        # Now, replace them
+        for name, old_module in layers_to_replace:
+            new_module = nn.Conv2d(
+                in_channels=old_module.in_channels,
+                out_channels=old_module.out_channels,
+                kernel_size=old_module.kernel_size,
+                stride=old_module.stride,
+                padding=old_module.padding,
+                dilation=old_module.dilation,
+                groups=old_module.groups,
+                bias=old_module.bias is not None,
+                padding_mode='circular'  # Set padding mode to circular
+            )
+            setattr(self, name, new_module)  # Replace the old module
+            print(f"Replaced Layer: {name} with Circular Padding")
+
+
     def _set_gradient_checkpointing(self, module, value=False):
         if isinstance(module, (Encoder, Decoder)):
             module.gradient_checkpointing = value

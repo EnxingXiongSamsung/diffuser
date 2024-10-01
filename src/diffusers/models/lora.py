@@ -351,10 +351,23 @@ class LoRACompatibleConv(nn.Conv2d):
         self.w_up = None
         self.w_down = None
 
-    def forward(self, hidden_states: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, scale: float = 1.0, custom: bool=False) -> torch.Tensor:
         if self.lora_layer is None:
             # make sure to the functional Conv2D function as otherwise torch.compile's graph will break
             # see: https://github.com/huggingface/diffusers/pull/4315
+            if custom:
+                padding_modeY = 'constant'
+                paddingY = (0, 0, 1, 1)
+                working = F.pad(hidden_states, paddingY, mode=padding_modeY) 
+                return F.conv2d(working, self.weight, self.bias, self.stride, (0, 0), self.dilation, self.groups)
+            if self.padding[0] == 1 and self.padding[1] == 1:
+                padding_modeX = 'circular'
+                padding_modeY = 'constant'
+                paddingX = (1, 1, 0, 0)
+                paddingY = (0, 0, 1, 1)
+                working = F.pad(hidden_states, paddingX, mode=padding_modeX)
+                working = F.pad(working, paddingY, mode=padding_modeY)
+                return F.conv2d(working, self.weight, self.bias, self.stride, (0, 0), self.dilation, self.groups)
             return F.conv2d(
                 hidden_states, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups
             )

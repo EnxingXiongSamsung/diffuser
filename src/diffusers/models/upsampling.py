@@ -181,7 +181,18 @@ class Upsample2D(nn.Module):
         if self.use_conv:
             if self.name == "conv":
                 if isinstance(self.conv, LoRACompatibleConv) and not USE_PEFT_BACKEND:
-                    hidden_states = self.conv(hidden_states, scale)
+                    #print(f'resnet last layer over 4096 pixel width splitW_cirConv enxingxiong!!')
+                    def splitW_cirConv(x, scale, original_conv):
+                        with torch.no_grad():
+                            s = x.shape
+                            mid = s[3]//2
+                            # mid_x = x[:, :, :, mid:mid+1]
+                            x1 = torch.cat((x[:,:,:, -1:], x[:, :, :, :mid + 1]), dim=3)
+                            x2 = torch.cat((x[:, :, :, mid - 1:], x[:,:,:, :1]), dim=3)
+                            x1 = original_conv(x1, scale, custom=True)
+                            x2 = original_conv(x2, scale, custom=True)
+                            return torch.cat((x1, x2), dim=3).to(x.device)
+                    hidden_states = splitW_cirConv(hidden_states, scale, self.conv)
                 else:
                     hidden_states = self.conv(hidden_states)
             else:

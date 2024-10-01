@@ -132,6 +132,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         # Now, replace them
         for name, old_module in layers_to_replace:
+            print(f'{old_module.weight.data.means()=}')
             new_module = nn.Conv2d(
                 in_channels=old_module.in_channels,
                 out_channels=old_module.out_channels,
@@ -144,6 +145,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 padding_mode='circular'  # Set padding mode to circular
             )
             setattr(self, name, new_module)  # Replace the old module
+            print(f'{new_module.weight.data.means()=}')
             print(f"Replaced Layer: {name} with Circular Padding")
 
 
